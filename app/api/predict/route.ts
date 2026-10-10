@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { inputSchema, normalizeEntities } from '@/lib/ner';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   let payload: unknown;
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 90000);
   const started = performance.now();
   try {
     const response = await fetch(url, {
@@ -50,8 +50,10 @@ export async function POST(request: Request) {
       entities,
       latencyMs: Math.round(performance.now() - started),
     }, { headers: { 'Cache-Control': 'no-store' } });
-  } catch {
-    return NextResponse.json({ error: 'Inference failed or returned an unsupported format' }, { status: 502 });
+  } catch (error) {
+    const timedOut = controller.signal.aborted;
+    console.error('Inference request failed', { timedOut, message: error instanceof Error ? error.message : 'Unknown error' });
+    return NextResponse.json({ error: timedOut ? 'Inference timed out after 90 seconds. Please retry.' : 'Inference failed or returned an unsupported format' }, { status: timedOut ? 504 : 502 });
   } finally {
     clearTimeout(timeout);
   }
