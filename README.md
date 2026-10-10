@@ -30,6 +30,19 @@ Configure `HF_INFERENCE_ENDPOINT` with an HTTPS endpoint serving a verified Swah
 
 Verify the model's license, entity labels and endpoint format before use. No model has been selected or evaluated yet. Do not log user-submitted text or expose credentials in browser code.
 
+## Candidate Swahili NER model
+
+**Candidate:** [mbeukman/xlm-roberta-base-finetuned-ner-swahili](https://huggingface.co/mbeukman/xlm-roberta-base-finetuned-ner-swahili).
+
+The model card describes an XLM-RoBERTa token-classification model fine-tuned on the Swahili portion of MasakhaNER. This is a **candidate**, not a confirmed live integration. Before deploying:
+
+1. Confirm model and dataset licensing, plus any attribution obligations.
+2. Verify its actual output shape and label schema with `pipeline("token-classification", aggregation_strategy="simple")`.
+3. Deploy it on a dedicated HTTPS inference service, benchmark latency and quality, and configure `HF_INFERENCE_ENDPOINT` and `HF_TOKEN`.
+4. Test the Vercel API end-to-end and add rate limiting before opening public traffic.
+
+Do not substitute the high-resource-only `Davlan/xlm-roberta-base-ner-hrl` checkpoint as if it were Swahili-specific: its documented training languages exclude Swahili.
+
 ## API contract
 
 `POST /api/predict` with `{"text":"Rais alitembelea Nairobi nchini Kenya."}`
