@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const endpoint = process.env.HF_INFERENCE_ENDPOINT;
   const token = process.env.HF_TOKEN;
   if (!endpoint || !token) {
-    return NextResponse.json({ error: 'Inference service is not configured' }, { status: 503 });
+    return NextResponse.json({ error: 'Inference service is not configured', missingVariables: [!endpoint ? 'HF_INFERENCE_ENDPOINT' : null, !token ? 'HF_TOKEN' : null].filter(Boolean) }, { status: 503 });
   }
   let url: URL;
   try {
