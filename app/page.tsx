@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { segmentEntities, type Entity } from '@/lib/ner';
 
 const examples = [
@@ -29,7 +30,7 @@ export default function Home() {
     finally { setLoading(false); }
   }
   return <main className="shell">
-    <nav className="topbar"><a className="wordmark" href="/" aria-label="SwahiliLand home"><span className="brand-dot" /> SwahiliLand</a><a className="navlink" href="https://github.com/Thekidmaroi/SwahiliLand" target="_blank" rel="noreferrer">View source ↗</a></nav>
+    <nav className="topbar"><Link className="wordmark" href="/" aria-label="SwahiliLand home"><span className="brand-dot" /> SwahiliLand</Link><a className="navlink" href="https://github.com/Thekidmaroi/SwahiliLand" target="_blank" rel="noreferrer">View source ↗</a></nav>
     <header className="hero"><div className="eyebrow"><span className="live-dot" /> OPEN-SOURCE AFRICAN LANGUAGE NLP</div><h1>Language deserves <em>recognition.</em></h1><p>Discover people, places, and organizations in Kiswahili with transformer-powered named entity recognition.</p><div className="hero-meta"><span>Swahili NER</span><span>XLM-RoBERTa</span><span>FastAPI + Next.js</span></div></header>
     <section className="workspace" aria-label="NER playground">
       <div className="section-heading"><div><span className="step">01 / INPUT</span><h2>Try the model</h2></div><span className="muted">Up to 2,000 characters</span></div>
