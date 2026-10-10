@@ -20,6 +20,12 @@ npm run dev
 
 Visit http://localhost:3000. Without configured inference credentials, the API returns HTTP 503 by design.
 
+## Included inference service
+
+A Dockerized FastAPI server is now available in [`model-service/`](model-service/README.md). It loads the Swahili-specific XLM-RoBERTa checkpoint, provides `/predict`, and returns the response expected by the Next.js proxy. This code has **not** yet been exercised against a live hosted model. The model card explicitly cautions against consequential production use; SwahiliLand is currently a research/demo application.
+
+To connect it, deploy the container on a suitable host, configure its `SERVICE_TOKEN`, then set `HF_INFERENCE_ENDPOINT=https://YOUR-HOST/predict` and `HF_TOKEN` in Vercel to match. Do not put secrets in the browser.
+
 ## Model serving
 
 Configure `HF_INFERENCE_ENDPOINT` with an HTTPS endpoint serving a verified Swahili token-classification model and `HF_TOKEN` with the secret token. The expected request body is `{"inputs":"Rais alitembelea Nairobi."}`. The expected provider response is a JSON array, for example:
@@ -72,7 +78,7 @@ Import the repository as a Next.js project, configure `HF_INFERENCE_ENDPOINT` an
 - [x] Input validation and timeout handling
 - [x] Unit tests and GitHub Actions CI
 - [ ] Select licensed Swahili NER model and evaluation dataset
-- [ ] Configure and verify live model inference
+- [x] Implement Dockerized Python model-serving service (not yet deployed)\n- [ ] Configure and verify live model inference
 - [ ] Benchmark F1, latency and error cases
 - [ ] Add rate limiting, observability and deployment smoke tests
 - [ ] Publish Vercel deployment
