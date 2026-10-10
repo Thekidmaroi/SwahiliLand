@@ -1,16 +1,48 @@
-# SwahiliLand
+# SwahiliLand · Swahili Named Entity Recognition
 
-**SwahiliLand** is a Swahili named-entity recognition (NER) web application with a validated Next.js inference API.
+A full-stack, open-source **Kiswahili named entity recognition playground**. Explore people, locations and organizations in a sentence using an XLM-RoBERTa model behind a dedicated Python inference API.
 
-> **Status: starter foundation, not yet a deployed NLP service.** The frontend, API contract and CI are implemented. Live inference requires selecting and connecting a compatible Swahili NER model.
+**Live demo:** [SwahiliLand on Vercel](https://swahililand-marwanehoundel-gmailcoms-projects.vercel.app) · **Source:** [GitHub](https://github.com/Thekidmaroi/SwahiliLand)
+
+> Research/portfolio demonstration, **not** a system for consequential decisions. Model predictions may be incorrect or biased.
+
+## What you can do
+
+- Enter up to 2,000 characters of Swahili and run entity recognition.
+- Try example sentences with a single click.
+- Inspect inline entity highlights, labels, scores and measured end-to-end inference latency.
+- Explore an accessible, responsive interface with loading, error and empty states.
+
+## Stack
+
+| Layer | Technology | Role |
+| --- | --- | --- |
+| Web | Next.js 15, React 19, TypeScript | Interactive playground |
+| API proxy | Next.js Route Handler + Zod | Input validation, secure proxy, timeout |
+| Model server | FastAPI, Uvicorn, PyTorch, Transformers | Dedicated inference process |
+| Model | [XLM-RoBERTa fine-tuned for Swahili NER](https://huggingface.co/mbeukman/xlm-roberta-base-finetuned-ner-swahili) | Token classification |
+| Hosting | Vercel + Railway | Web + CPU inference |
+| Quality | Vitest, ESLint, GitHub Actions | Contract tests and CI |
 
 ## Architecture
 
-Browser (Next.js) → POST /api/predict (Vercel) → HTTPS dedicated model endpoint.
+```text
+Browser ── POST /api/predict ──> Next.js / Vercel
+                                    │ HTTPS + server-only Bearer token
+                                    ▼
+                             FastAPI / Railway
+                                    │
+                                    ▼
+                          XLM-RoBERTa / PyTorch CPU
+                                    │
+                  Entity offsets, labels and scores
+                                    ▼
+                         Inline highlighted entities
+```
 
-The model is **not** bundled into Vercel. The API validates input, keeps the provider token on the server, enforces an upstream timeout and normalizes model output.
+See [architecture, security, benchmarking and evaluation notes](docs/architecture.md).
 
-## Local setup
+## Run locally
 
 ```bash
 npm install
@@ -18,47 +50,32 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Visit http://localhost:3000. Without configured inference credentials, the API returns HTTP 503 by design.
+Set `HF_INFERENCE_ENDPOINT` to the HTTPS URL of your model server's `/predict` endpoint, and `HF_TOKEN` to the same secret configured as `SERVICE_TOKEN` on the Python server. **Never expose secrets as `NEXT_PUBLIC_*` variables.**
 
-## Included inference service
+To run the Python server, see [model-service/README.md](model-service/README.md). To deploy it with Hugging Face Spaces, see [the deployment guide](docs/hugging-face-spaces.md).
 
-A Dockerized FastAPI server is now available in [`model-service/`](model-service/README.md). It loads the Swahili-specific XLM-RoBERTa checkpoint, provides `/predict`, and returns the response expected by the Next.js proxy. This code has **not** yet been exercised against a live hosted model. The model card explicitly cautions against consequential production use; SwahiliLand is currently a research/demo application.
+## API
 
-To connect it, deploy the container on a suitable host, configure its `SERVICE_TOKEN`, then set `HF_INFERENCE_ENDPOINT=https://YOUR-HOST/predict` and `HF_TOKEN` in Vercel to match. Do not put secrets in the browser.
-
-## Model serving
-
-Configure `HF_INFERENCE_ENDPOINT` with an HTTPS endpoint serving a verified Swahili token-classification model and `HF_TOKEN` with the secret token. The expected request body is `{"inputs":"Rais alitembelea Nairobi."}`. The expected provider response is a JSON array, for example:
+`POST /api/predict`:
 
 ```json
-[{"word":"Nairobi","entity_group":"LOC","score":0.97,"start":17,"end":24}]
+{"text":"Barack Obama alitembelea Nairobi nchini Kenya."}
 ```
 
-Verify the model's license, entity labels and endpoint format before use. No model has been selected or evaluated yet. Do not log user-submitted text or expose credentials in browser code.
+Successful response:
 
-## Candidate Swahili NER model
+```json
+{
+  "language": "sw",
+  "task": "named-entity-recognition",
+  "entities": [{"text":"Nairobi","label":"LOC","score":0.97,"start":26,"end":33}],
+  "latencyMs": 420
+}
+```
 
-**Candidate:** [mbeukman/xlm-roberta-base-finetuned-ner-swahili](https://huggingface.co/mbeukman/xlm-roberta-base-finetuned-ner-swahili).
+The values above illustrate the **response shape**, not a verified model prediction or benchmark. The server returns HTTP 400 for invalid input, 503 for missing configuration, 502 for upstream errors, and 504 for timeouts.
 
-The model card describes an XLM-RoBERTa token-classification model fine-tuned on the Swahili portion of MasakhaNER. This is a **candidate**, not a confirmed live integration. Before deploying:
-
-1. Confirm model and dataset licensing, plus any attribution obligations.
-2. Verify its actual output shape and label schema with `pipeline("token-classification", aggregation_strategy="simple")`.
-3. Deploy it on a dedicated HTTPS inference service, benchmark latency and quality, and configure `HF_INFERENCE_ENDPOINT` and `HF_TOKEN`.
-4. Test the Vercel API end-to-end and add rate limiting before opening public traffic.
-
-Do not substitute the high-resource-only `Davlan/xlm-roberta-base-ner-hrl` checkpoint as if it were Swahili-specific: its documented training languages exclude Swahili.
-
-## API contract
-
-`POST /api/predict` with `{"text":"Rais alitembelea Nairobi nchini Kenya."}`
-
-- HTTP 200: `{"language":"sw","task":"named-entity-recognition","entities":[...],"latencyMs":123}`
-- HTTP 400: invalid input
-- HTTP 503: missing or invalid inference configuration
-- HTTP 502: upstream inference failure
-
-## Quality
+## Test and build
 
 ```bash
 npm run lint
@@ -66,21 +83,22 @@ npm test
 npm run build
 ```
 
-CI runs these checks for pull requests. Current tests validate contracts, **not** NLP model accuracy.
+Unit tests cover validation, provider response normalization, entity offsets, overlaps and invalid spans. CI runs checks on pull requests. Model accuracy and production load testing are **not yet measured**.
 
-## Deploy to Vercel
+## Performance choices
 
-Import the repository as a Next.js project, configure `HF_INFERENCE_ENDPOINT` and `HF_TOKEN` as server-side environment variables, deploy, and verify a real inference request. Add rate limiting, usage quotas and model evaluation before opening the service publicly.
+- Load model once per Python worker; warm it up at startup.
+- Use `torch.inference_mode()` and configurable CPU thread count (`TORCH_THREADS=2`).
+- Keep only one Uvicorn worker by default to avoid duplicate model memory.
+- Avoid persisting or logging submitted text.
+- Show real request latency in the UI instead of invented benchmark numbers.
 
-## Roadmap
+**Next engineering milestones:** measure p50/p95 on representative inputs, evaluate entity-level F1 on a licensed held-out dataset, add rate limiting and a deployment smoke-test workflow.
 
-- [x] Next.js frontend and inference API contract
-- [x] Input validation and timeout handling
-- [x] Unit tests and GitHub Actions CI
-- [ ] Select licensed Swahili NER model and evaluation dataset
-- [x] Implement Dockerized Python model-serving service (not yet deployed)\n- [ ] Configure and verify live model inference
-- [ ] Benchmark F1, latency and error cases
-- [ ] Add rate limiting, observability and deployment smoke tests
-- [ ] Publish Vercel deployment
+## Portfolio / design
 
-License to be finalized after checking third-party model and dataset terms.
+The interface is intentionally designed as a focused NLP laboratory: emerald accents, dark surfaces, responsive annotated text, example prompts and per-entity confidence. Add a verified screenshot to `docs/screenshots/` after deployment; screenshots are not fabricated in this repository.
+
+## License and model use
+
+The candidate model's [model card](https://huggingface.co/mbeukman/xlm-roberta-base-finetuned-ner-swahili) documents model terms and limitations. Verify model and dataset licensing before redistribution. The repository's own license is not yet finalized.
